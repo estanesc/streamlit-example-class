@@ -1,3 +1,4 @@
-altair
-pandas
 streamlit
+pandas
+numpy
+altair
