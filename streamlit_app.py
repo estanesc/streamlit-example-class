@@ -1,40 +1,81 @@
 import altair as alt
-import numpy as np
 import pandas as pd
 import streamlit as st
 
-"""
-# Welcome to Streamlit!
+DATA_PATH = "data/yearly_deaths_by_clinic-1.csv"
 
-Edit `/streamlit_app.py` to customize this app to your heart's desire :heart:.
-If you have any questions, checkout our [documentation](https://docs.streamlit.io) and [community
-forums](https://discuss.streamlit.io).
+st.title("Yearly births and deaths by clinic")
 
-In the meantime, below is an example of what you can do with just a few lines of code:
-"""
 
-num_points = st.slider("Number of points in spiral", 1, 10000, 1100)
-num_turns = st.slider("Number of turns in spiral", 1, 300, 31)
+@st.cache_data
+def load_data(path: str) -> pd.DataFrame:
+    df = pd.read_csv(path)
+    # ensure types
+    df["Year"] = df["Year"].astype(int)
+    df["Birth"] = pd.to_numeric(df["Birth"], errors="coerce")
+    df["Deaths"] = pd.to_numeric(df["Deaths"], errors="coerce")
+    return df
 
-indices = np.linspace(0, 1, num_points)
-theta = 2 * np.pi * num_turns * indices
-radius = indices
 
-x = radius * np.cos(theta)
-y = radius * np.sin(theta)
+df = load_data(DATA_PATH)
 
-df = pd.DataFrame({
-    "x": x,
-    "y": y,
-    "idx": indices,
-    "rand": np.random.randn(num_points),
-})
+st.sidebar.header("Controls")
+clinics = sorted(df["Clinic"].unique())
+selected_clinics = st.sidebar.multiselect("Select clinics", clinics, default=clinics)
+year_min, year_max = int(df["Year"].min()), int(df["Year"].max())
+year_range = st.sidebar.slider("Year range", year_min, year_max, (year_min, year_max))
 
-st.altair_chart(alt.Chart(df, height=700, width=700)
-    .mark_point(filled=True)
+filtered = df.loc[
+    df["Clinic"].isin(selected_clinics) & df["Year"].between(year_range[0], year_range[1])
+]
+
+st.markdown("### Data sample")
+st.dataframe(filtered.reset_index(drop=True))
+
+st.markdown("---")
+
+st.markdown("#### Deaths over time (line chart)")
+line = (
+    alt.Chart(filtered)
+    .mark_line(point=True)
     .encode(
-        x=alt.X("x", axis=None),
-        y=alt.Y("y", axis=None),
-        color=alt.Color("idx", legend=None, scale=alt.Scale()),
-        size=alt.Size("rand", legend=None, scale=alt.Scale(range=[1, 150])),
-    ))
+        x=alt.X("Year:O", title="Year"),
+        y=alt.Y("Deaths:Q", title="Deaths"),
+        color=alt.Color("Clinic:N", title="Clinic"),
+        tooltip=["Year", "Clinic", "Birth", "Deaths"],
+    )
+    .properties(height=400, width=700)
+)
+st.altair_chart(line, use_container_width=True)
+
+st.markdown("#### Deaths by year and clinic (grouped bars)")
+bar = (
+    alt.Chart(filtered)
+    .mark_bar()
+    .encode(
+        x=alt.X("Year:O", title="Year"),
+        y=alt.Y("Deaths:Q", title="Deaths"),
+        color=alt.Color("Clinic:N", title="Clinic"),
+        column=alt.Column("Clinic:N", header=alt.Header(labelAngle=0, title=None)),
+        tooltip=["Year", "Clinic", "Deaths"],
+    )
+    .properties(height=300)
+)
+st.altair_chart(bar, use_container_width=True)
+
+st.markdown("#### Births vs Deaths (scatter)")
+scatter = (
+    alt.Chart(filtered)
+    .mark_circle(opacity=0.7)
+    .encode(
+        x=alt.X("Birth:Q", title="Births"),
+        y=alt.Y("Deaths:Q", title="Deaths"),
+        size=alt.Size("Birth:Q", title="Births", scale=alt.Scale(range=[30, 400])),
+        color=alt.Color("Clinic:N", title="Clinic"),
+        tooltip=["Year", "Clinic", "Birth", "Deaths"],
+    )
+    .properties(height=400)
+)
+st.altair_chart(scatter, use_container_width=True)
+
+st.markdown("\n---\n\nTip: adjust the clinic selection and year range in the sidebar to update the charts.")
