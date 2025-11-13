@@ -4,6 +4,9 @@ import streamlit as st
 
 DATA_PATH = "data/yearly_deaths_by_clinic-1.csv"
 
+# year when hand-washing was introduced in Semmelweis' analysis
+HANDWASH_YEAR = 1847
+
 st.title("Yearly births and deaths by clinic")
 
 st.markdown(
@@ -34,14 +37,37 @@ filtered = df.loc[
     df["Clinic"].isin(selected_clinics) & df["Year"].between(year_range[0], year_range[1])
 ]
 
+# Findings and quick metrics in the sidebar so they're always visible
+st.sidebar.header("Findings")
+st.sidebar.markdown(
+    "- Clinic 1 shows a large drop in deaths around 1847 (hand-washing introduction).\n"
+    "- Clinic 2 has lower mortality across the period.\n\n"
+    "Use the filters above to refine by year or clinic."
+)
+
+sel_for_metrics = df[df["Clinic"].isin(selected_clinics) & df["Year"].between(year_range[0], year_range[1])]
+pre = sel_for_metrics[sel_for_metrics["Year"] < HANDWASH_YEAR]["Deaths"].mean()
+post = sel_for_metrics[sel_for_metrics["Year"] >= HANDWASH_YEAR]["Deaths"].mean()
+
+# compute percent change (post vs pre)
+pct_change = None
+if (not pd.isna(pre)) and (pre != 0) and (not pd.isna(post)):
+    pct_change = (post - pre) / pre * 100
+
+st.sidebar.markdown("**Quick metrics (selected clinics & years)**")
+st.sidebar.metric("Avg deaths (before 1847)", f"{pre:.1f}" if not pd.isna(pre) else "N/A")
+if pct_change is None:
+    st.sidebar.metric("Avg deaths (from 1847)", f"{post:.1f}" if not pd.isna(post) else "N/A")
+else:
+    # show percent change as delta
+    st.sidebar.metric("Avg deaths (from 1847)", f"{post:.1f}", delta=f"{pct_change:+.1f}%")
+
 st.markdown("### Data sample")
 st.dataframe(filtered.reset_index(drop=True))
 
 st.markdown("---")
 
 st.markdown("#### Deaths over time (line chart)")
-# mark the year when hand-washing was introduced in Semmelweis' analysis
-HANDWASH_YEAR = 1847
 
 base_line = (
     alt.Chart(filtered)
@@ -96,9 +122,4 @@ scatter = (
 st.altair_chart(scatter, use_container_width=True)
 
 st.markdown("\n---\n\nTip: adjust the clinic selection and year range in the sidebar to update the charts.")
-
-st.markdown("### Findings")
-st.markdown(
-    "- Clinic 1 shows a clear reduction in deaths after 1847 (the year hand-washing was introduced), while Clinic 2 already had lower death counts."
-    "\n- The scatter plot (births vs deaths) shows Clinic 1 had higher deaths relative to births before 1847; after that year the gap narrows."
-)
+st.markdown("\n---\n\nTip: adjust the clinic selection and year range in the sidebar to update the charts.")
