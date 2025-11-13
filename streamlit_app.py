@@ -10,6 +10,13 @@ HANDWASH_YEAR = 1847
 st.title("Yearly births and deaths by clinic")
 
 st.markdown(
+    "Sonia Chavelas Gonzalez  \n"
+    "Emanuel Stanescu Moloman  \n"
+    "Priyal Vyas  \n"
+    "Nina Myers"
+)
+
+st.markdown(
     "This notebook visualizes yearly births and deaths from two clinics in the 1840s."
     " The dataset is the classic Semmelweis case used to study how hand-washing changed outcomes."
 )
